@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.sighs.petiteinventory.platform.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "petiteinventory.refmap.json",
+  "mixins": [
+    "AbstractContainerMenuMixin",
+    "ContainerCloseDefenseMixin",
+    "CompoundTagMixin",
+    "InventoryMixin",
+    "ServerPlayerMixin"
+  ],
+  "client": [
+    "AbstractContainerScreenMixin",
+    "InventoryScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

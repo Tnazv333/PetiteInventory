@@ -1,1 +1,0 @@
-com.sighs.petiteinventory.compat.kubejs.JSPlugin
