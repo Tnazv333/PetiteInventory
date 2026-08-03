@@ -1,60 +1,56 @@
 package com.sighs.petiteinventory.client;
 
-import com.sighs.petiteinventory.Petiteinventory;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.sighs.petiteinventory.inventory.BorderTheme;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 public class InventoryRenderer {
-    public static ResourceLocation AREA_TEXTURE = new ResourceLocation(Petiteinventory.MODID, "textures/area.png");
+    private static final ResourceLocation INVENTORY_TEXTURE = new ResourceLocation("textures/gui/container/inventory.png");
+    private static final int TEXTURE_SIZE = 256;
+    private static final int SLOT_SOURCE_X = 25;
+    private static final int SLOT_SOURCE_Y = 101;
+    private static final int SLOT_SIZE = 18;
 
-    /**
-     * 绘制带主题的九宫格（只改变贴图颜色）
-     */
     public static void drawNinePatch(GuiGraphics graphics, BorderTheme theme,
                                      int x, int y, int width, int height,
                                      int textureSize, int border) {
-        // ✅ 只在这里设置颜色 - 只影响贴图
         RenderSystem.setShaderColor(theme.getR(), theme.getG(), theme.getB(), 1.0f);
-
         try {
-            drawNinePatchInternal(graphics, AREA_TEXTURE, x, y, width, height, textureSize, border);
+            drawNinePatchInternal(graphics, x, y, width, height, border);
         } finally {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         }
     }
 
-    // 内部绘制方法（保持不变）
-    private static void drawNinePatchInternal(GuiGraphics graphics, ResourceLocation texture,
-                                              int x, int y, int width, int height,
-                                              int textureSize, int border) {
-        // 角落
-        graphics.blit(texture, x, y, 0, 0, border, border, textureSize, textureSize);
-        graphics.blit(texture, x + width - border, y, textureSize - border, 0, border, border, textureSize, textureSize);
-        graphics.blit(texture, x, y + height - border, 0, textureSize - border, border, border, textureSize, textureSize);
-        graphics.blit(texture, x + width - border, y + height - border, textureSize - border, textureSize - border, border, border, textureSize, textureSize);
+    private static void drawNinePatchInternal(GuiGraphics graphics,
+                                              int x, int y, int width, int height, int border) {
+        int sourceRight = SLOT_SOURCE_X + SLOT_SIZE - border;
+        int sourceBottom = SLOT_SOURCE_Y + SLOT_SIZE - border;
+        int sourceCenterSize = SLOT_SIZE - border * 2;
 
-        // 上下边
+        graphics.blit(INVENTORY_TEXTURE, x, y, SLOT_SOURCE_X, SLOT_SOURCE_Y, border, border, TEXTURE_SIZE, TEXTURE_SIZE);
+        graphics.blit(INVENTORY_TEXTURE, x + width - border, y, sourceRight, SLOT_SOURCE_Y, border, border, TEXTURE_SIZE, TEXTURE_SIZE);
+        graphics.blit(INVENTORY_TEXTURE, x, y + height - border, SLOT_SOURCE_X, sourceBottom, border, border, TEXTURE_SIZE, TEXTURE_SIZE);
+        graphics.blit(INVENTORY_TEXTURE, x + width - border, y + height - border, sourceRight, sourceBottom, border, border, TEXTURE_SIZE, TEXTURE_SIZE);
+
         if (width > border * 2) {
-            graphics.blit(texture, x + border, y, width - border * 2, border,
-                    border, 0, textureSize - border * 2, border, textureSize, textureSize);
-            graphics.blit(texture, x + border, y + height - border, width - border * 2, border,
-                    border, textureSize - border, textureSize - border * 2, border, textureSize, textureSize);
+            graphics.blit(INVENTORY_TEXTURE, x + border, y, width - border * 2, border,
+                    SLOT_SOURCE_X + border, SLOT_SOURCE_Y, sourceCenterSize, border, TEXTURE_SIZE, TEXTURE_SIZE);
+            graphics.blit(INVENTORY_TEXTURE, x + border, y + height - border, width - border * 2, border,
+                    SLOT_SOURCE_X + border, sourceBottom, sourceCenterSize, border, TEXTURE_SIZE, TEXTURE_SIZE);
         }
 
-        // 左右边
         if (height > border * 2) {
-            graphics.blit(texture, x, y + border, border, height - border * 2,
-                    0, border, border, textureSize - border * 2, textureSize, textureSize);
-            graphics.blit(texture, x + width - border, y + border, border, height - border * 2,
-                    textureSize - border, border, border, textureSize - border * 2, textureSize, textureSize);
+            graphics.blit(INVENTORY_TEXTURE, x, y + border, border, height - border * 2,
+                    SLOT_SOURCE_X, SLOT_SOURCE_Y + border, border, sourceCenterSize, TEXTURE_SIZE, TEXTURE_SIZE);
+            graphics.blit(INVENTORY_TEXTURE, x + width - border, y + border, border, height - border * 2,
+                    sourceRight, SLOT_SOURCE_Y + border, border, sourceCenterSize, TEXTURE_SIZE, TEXTURE_SIZE);
         }
 
-        // 中心
         if (width > border * 2 && height > border * 2) {
-            graphics.blit(texture, x + border, y + border, width - border * 2, height - border * 2,
-                    border, border, textureSize - border * 2, textureSize - border * 2, textureSize, textureSize);
+            graphics.blit(INVENTORY_TEXTURE, x + border, y + border, width - border * 2, height - border * 2,
+                    SLOT_SOURCE_X + border, SLOT_SOURCE_Y + border, sourceCenterSize, sourceCenterSize, TEXTURE_SIZE, TEXTURE_SIZE);
         }
     }
 }

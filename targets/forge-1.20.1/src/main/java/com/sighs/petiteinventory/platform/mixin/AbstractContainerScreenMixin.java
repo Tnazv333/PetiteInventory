@@ -135,6 +135,74 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Unique private Slot resizeSlot;
     @Unique private int resizeDirection = -1;
     @Unique private int resizeStartX, resizeStartY, resizeWidth, resizeHeight;
+    @Unique private Slot colorMenuSlot;
+    @Unique private int colorMenuX, colorMenuY;
+    @Unique private boolean consumeColorMenuRelease;
+
+    @Inject(method = "render", at = @At("RETURN"))
+    private void renderColorPalette(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo callback) {
+        if (colorMenuSlot == null || !ClientEditMode.isEnabled()) return;
+
+        BorderTheme[] themes = BorderTheme.values();
+        int paletteWidth = 12;
+        int entryHeight = 10;
+        int paletteHeight = themes.length * entryHeight + 2;
+        int x = Math.max(0, Math.min(colorMenuX, width - paletteWidth));
+        int y = Math.max(0, Math.min(colorMenuY, height - paletteHeight));
+        BorderTheme current = BorderThemeCache.getTheme(colorMenuSlot.getItem().getItem(), colorMenuSlot.getItem());
+
+        graphics.fill(x, y, x + paletteWidth, y + paletteHeight, 0xFF202020);
+        for (int index = 0; index < themes.length; index++) {
+            BorderTheme theme = themes[index];
+            int swatchY = y + 1 + index * entryHeight;
+            int color = 0xFF000000
+                    | ((int) (theme.getR() * 255) << 16)
+                    | ((int) (theme.getG() * 255) << 8)
+                    | (int) (theme.getB() * 255);
+            graphics.fill(x + 2, swatchY + 1, x + paletteWidth - 2, swatchY + entryHeight - 1, color);
+            if (theme == current) {
+                graphics.fill(x + 1, swatchY, x + paletteWidth - 1, swatchY + 1, 0xFFFFFFFF);
+                graphics.fill(x + 1, swatchY + entryHeight - 1, x + paletteWidth - 1, swatchY + entryHeight, 0xFFFFFFFF);
+                graphics.fill(x + 1, swatchY, x + 2, swatchY + entryHeight, 0xFFFFFFFF);
+                graphics.fill(x + paletteWidth - 2, swatchY, x + paletteWidth - 1, swatchY + entryHeight, 0xFFFFFFFF);
+            }
+        }
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void handleColorPaletteClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
+        if (!ClientEditMode.isEnabled()) return;
+
+        if (colorMenuSlot != null) {
+            if (button == 0 && selectPaletteTheme(mouseX, mouseY)) {
+                consumeColorMenuRelease = true;
+                callback.setReturnValue(true);
+                return;
+            }
+            colorMenuSlot = null;
+            if (button != 1) {
+                consumeColorMenuRelease = true;
+                callback.setReturnValue(true);
+                return;
+            }
+        }
+
+        if (button != 1) return;
+        Slot slot = findEditorItemSlot(mouseX, mouseY);
+        if (slot == null) return;
+        colorMenuSlot = slot;
+        colorMenuX = (int) mouseX + 8;
+        colorMenuY = (int) mouseY + 8;
+        consumeColorMenuRelease = true;
+        callback.setReturnValue(true);
+    }
+
+    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    private void consumeColorPaletteRelease(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
+        if (!consumeColorMenuRelease) return;
+        consumeColorMenuRelease = false;
+        callback.setReturnValue(true);
+    }
 
     @Inject(method = "render", at = @At("RETURN"))
     private void renderEditorHandles(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo callback) {
@@ -154,7 +222,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void beginResize(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
-        if (!ClientEditMode.isEnabled() || button != 1) return;
+        if (!ClientEditMode.isEnabled() || button != 0) return;
         Slot slot = findResizeSlot(mouseX, mouseY);
         if (slot == null) return;
         Area area = ItemInventoryService.getArea(slot.getItem());
@@ -197,6 +265,40 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             if (getResizeDirection(slot, mouseX, mouseY) != -1) return slot;
         }
         return null;
+    }
+
+    @Unique
+    private Slot findEditorItemSlot(double mouseX, double mouseY) {
+        ContainerGrid grid = ClientInventoryContext.getContainerGrid();
+        for (ContainerGrid.Cell cell : grid.getCells()) {
+            Slot slot = cell.slot();
+            if (!slot.hasItem()) continue;
+            Area area = ItemInventoryService.getArea(slot.getItem());
+            int x = leftPos + slot.x;
+            int y = topPos + slot.y;
+            if (mouseX >= x && mouseX < x + area.width() * 18
+                    && mouseY >= y && mouseY < y + area.height() * 18) return slot;
+        }
+        return null;
+    }
+
+    @Unique
+    private boolean selectPaletteTheme(double mouseX, double mouseY) {
+        int paletteWidth = 12;
+        int entryHeight = 10;
+        int paletteHeight = BorderTheme.values().length * entryHeight + 2;
+        int x = Math.max(0, Math.min(colorMenuX, width - paletteWidth));
+        int y = Math.max(0, Math.min(colorMenuY, height - paletteHeight));
+        if (mouseX < x || mouseX >= x + paletteWidth || mouseY < y + 1 || mouseY >= y + paletteHeight - 1) return false;
+
+        int index = ((int) mouseY - y - 1) / entryHeight;
+        BorderTheme[] themes = BorderTheme.values();
+        if (index < 0 || index >= themes.length) return false;
+
+        String itemId = ForgeRegistries.ITEMS.getKey(colorMenuSlot.getItem().getItem()).toString();
+        BorderThemeCache.setTheme(itemId, themes[index]);
+        colorMenuSlot = null;
+        return true;
     }
 
     @Unique
@@ -467,8 +569,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         float minSize = area.minSize();
         float scale = minSize > 1 ? minSize * 0.8F : 1.0F;
         float renderedSize = 16 * scale;
-        float offsetX = (w * 18 - renderedSize) / 2.0F;
-        float offsetY = (h * 18 - renderedSize) / 2.0F;
+        float offsetX = (w * 18 - 2 - renderedSize) / 2.0F;
+        float offsetY = (h * 18 - 2 - renderedSize) / 2.0F;
         PoseStack poseStack = guiGraphics.pose();
         poseStack.translate(x + offsetX, y + offsetY, 0);
         poseStack.scale(scale, scale, 1.0f);

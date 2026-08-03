@@ -71,11 +71,14 @@ public class BorderThemeCache {
 
     /* 供指令调用：key 支持带 NBT 片段 */
     public static void setTheme(String itemId, BorderTheme theme) {
-        if (theme == BorderTheme.DEFAULT) {
-            COLOR_MAP.remove(itemId);
-        } else {
-            COLOR_MAP.put(itemId, theme);
-        }
+        COLOR_MAP.put(itemId, theme);
+        TAG_CACHE.remove(itemId);
+        BorderThemeFileStore.saveColors(COLOR_MAP);
+    }
+
+    public static void clearTheme(String itemId) {
+        COLOR_MAP.remove(itemId);
+        TAG_CACHE.remove(itemId);
         BorderThemeFileStore.saveColors(COLOR_MAP);
     }
 
