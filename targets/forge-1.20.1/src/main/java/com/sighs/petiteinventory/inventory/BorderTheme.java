@@ -1,7 +1,7 @@
 package com.sighs.petiteinventory.inventory;
 
 public enum BorderTheme {
-    DEFAULT("default", "默认", 0.8f, 0.8f, 0.8f),      // 灰色
+    DEFAULT("default", "默认", 1.0f, 1.0f, 1.0f),      // 原版物品栏灰色
     BLUE("blue", "高贵蓝", 0.3f, 0.5f, 1.0f),          // 蓝色
     PURPLE("purple", "高贵紫", 0.7f, 0.3f, 1.0f),      // 紫色
     ORANGE("orange", "高贵橙", 1.0f, 0.6f, 0.0f),      // 橙色

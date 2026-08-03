@@ -135,13 +135,24 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Unique private Slot resizeSlot;
     @Unique private int resizeDirection = -1;
     @Unique private int resizeStartX, resizeStartY, resizeWidth, resizeHeight;
-    @Unique private Slot colorMenuSlot;
+    @Unique private final Set<Slot> selectedSlots = new LinkedHashSet<>();
+    @Unique private Slot selectionAnchor;
+    @Unique private ContainerGrid.Cell selectionStartCell;
+    @Unique private boolean selectionDragging;
+    @Unique private boolean selectionAdditive;
+    @Unique private final Set<Slot> colorMenuTargets = new LinkedHashSet<>();
     @Unique private int colorMenuX, colorMenuY;
     @Unique private boolean consumeColorMenuRelease;
+    @Unique private Slot pendingRightSlot;
+    @Unique private final Set<Slot> pendingRightTargets = new LinkedHashSet<>();
+    @Unique private ContainerGrid.Cell batchStartCell;
+    @Unique private ContainerGrid.Cell batchEndCell;
+    @Unique private long rightPressStartedAt;
+    @Unique private boolean batchSizing;
 
     @Inject(method = "render", at = @At("RETURN"))
     private void renderColorPalette(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo callback) {
-        if (colorMenuSlot == null || !ClientEditMode.isEnabled()) return;
+        if (colorMenuTargets.isEmpty() || !ClientEditMode.isEnabled()) return;
 
         BorderTheme[] themes = BorderTheme.values();
         int paletteWidth = 12;
@@ -149,7 +160,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         int paletteHeight = themes.length * entryHeight + 2;
         int x = Math.max(0, Math.min(colorMenuX, width - paletteWidth));
         int y = Math.max(0, Math.min(colorMenuY, height - paletteHeight));
-        BorderTheme current = BorderThemeCache.getTheme(colorMenuSlot.getItem().getItem(), colorMenuSlot.getItem());
+        Slot previewSlot = colorMenuTargets.iterator().next();
+        BorderTheme current = BorderThemeCache.getTheme(previewSlot.getItem().getItem(), previewSlot.getItem());
 
         graphics.fill(x, y, x + paletteWidth, y + paletteHeight, 0xFF202020);
         for (int index = 0; index < themes.length; index++) {
@@ -173,13 +185,13 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     private void handleColorPaletteClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
         if (!ClientEditMode.isEnabled()) return;
 
-        if (colorMenuSlot != null) {
+        if (!colorMenuTargets.isEmpty()) {
             if (button == 0 && selectPaletteTheme(mouseX, mouseY)) {
                 consumeColorMenuRelease = true;
                 callback.setReturnValue(true);
                 return;
             }
-            colorMenuSlot = null;
+            colorMenuTargets.clear();
             if (button != 1) {
                 consumeColorMenuRelease = true;
                 callback.setReturnValue(true);
@@ -187,20 +199,92 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             }
         }
 
-        if (button != 1) return;
-        Slot slot = findEditorItemSlot(mouseX, mouseY);
-        if (slot == null) return;
-        colorMenuSlot = slot;
-        colorMenuX = (int) mouseX + 8;
-        colorMenuY = (int) mouseY + 8;
-        consumeColorMenuRelease = true;
-        callback.setReturnValue(true);
+        if (button == 0) return;
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void consumeColorPaletteRelease(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
         if (!consumeColorMenuRelease) return;
         consumeColorMenuRelease = false;
+        callback.setReturnValue(true);
+    }
+
+    @Inject(method = "render", at = @At("RETURN"))
+    private void renderSelectedItems(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo callback) {
+        if (!ClientEditMode.isEnabled()) return;
+        ContainerGrid grid = ClientInventoryContext.getContainerGrid();
+        for (Slot slot : selectedSlots) {
+            if (!slot.hasItem()) continue;
+            ContainerGrid.Cell origin = grid.getCell(slot);
+            if (origin == null) continue;
+            Area area = ItemInventoryService.getArea(slot.getItem());
+            for (ContainerGrid.Cell cell : grid.getCells(origin, area)) {
+                if (cell.slot().container.equals(slot.container)) {
+                    AbstractContainerScreen.renderSlotHighlight(graphics, cell.slot().x + leftPos, cell.slot().y + topPos, 0, -2130706433);
+                }
+            }
+        }
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void beginRightEditorAction(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
+        if (!ClientEditMode.isEnabled() || button != 1 || !colorMenuTargets.isEmpty()) return;
+        Slot slot = findEditorItemSlot(mouseX, mouseY);
+        if (slot == null) return;
+
+        pendingRightSlot = slot;
+        pendingRightTargets.clear();
+        if (selectedSlots.contains(slot) && !selectedSlots.isEmpty()) pendingRightTargets.addAll(selectedSlots);
+        else pendingRightTargets.add(slot);
+        rightPressStartedAt = System.currentTimeMillis();
+        batchStartCell = findGridCell(mouseX, mouseY);
+        batchEndCell = batchStartCell;
+        batchSizing = false;
+        callback.setReturnValue(true);
+    }
+
+    @Inject(method = "render", at = @At("RETURN"))
+    private void beginBatchSizingAfterHold(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo callback) {
+        if (pendingRightSlot != null && !batchSizing && System.currentTimeMillis() - rightPressStartedAt >= 500L) {
+            batchSizing = batchStartCell != null;
+        }
+        if (!batchSizing || batchStartCell == null) return;
+        ContainerGrid.Cell currentCell = findGridCell(mouseX, mouseY);
+        if (currentCell != null && currentCell.slot().container.equals(batchStartCell.slot().container)) batchEndCell = currentCell;
+        drawRedFrame(graphics, batchStartCell, batchEndCell);
+    }
+
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void dragBatchSizing(double mouseX, double mouseY, int button, double dragX, double dragY, CallbackInfoReturnable<Boolean> callback) {
+        if (!batchSizing || button != 1) return;
+        ContainerGrid.Cell currentCell = findGridCell(mouseX, mouseY);
+        if (currentCell != null && currentCell.slot().container.equals(batchStartCell.slot().container)) batchEndCell = currentCell;
+        callback.setReturnValue(true);
+    }
+
+    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    private void finishRightEditorAction(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
+        if (pendingRightSlot == null || button != 1) return;
+
+        if (batchSizing && batchStartCell != null && batchEndCell != null) {
+            int width = Math.abs(batchEndCell.x() - batchStartCell.x()) + 1;
+            int height = Math.abs(batchEndCell.y() - batchStartCell.y()) + 1;
+            for (Slot slot : pendingRightTargets) {
+                String itemId = ForgeRegistries.ITEMS.getKey(slot.getItem().getItem()).toString();
+                ItemSizeRuleCache.setSizeByCommand(itemId, width + "*" + height);
+            }
+        } else {
+            colorMenuTargets.clear();
+            colorMenuTargets.addAll(pendingRightTargets);
+            colorMenuX = (int) mouseX + 8;
+            colorMenuY = (int) mouseY + 8;
+        }
+
+        pendingRightSlot = null;
+        pendingRightTargets.clear();
+        batchStartCell = null;
+        batchEndCell = null;
+        batchSizing = false;
         callback.setReturnValue(true);
     }
 
@@ -247,6 +331,53 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         resizeSlot = null; resizeDirection = -1; callback.setReturnValue(true);
     }
 
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void beginSelection(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
+        if (!ClientEditMode.isEnabled() || button != 0 || !colorMenuTargets.isEmpty()) return;
+        ContainerGrid.Cell cell = findGridCell(mouseX, mouseY);
+        if (cell == null) return;
+
+        boolean additive = Screen.hasControlDown();
+        Slot slot = findEditorItemSlot(mouseX, mouseY);
+        ContainerGrid.Cell anchorCell = selectionAnchor == null ? null : ClientInventoryContext.getContainerGrid().getCell(selectionAnchor);
+        if (Screen.hasShiftDown() && anchorCell != null) {
+            selectGridRegion(anchorCell, cell, additive);
+        } else if (slot != null) {
+            if (additive && selectedSlots.contains(slot)) selectedSlots.remove(slot);
+            else {
+                if (!additive) selectedSlots.clear();
+                selectedSlots.add(slot);
+            }
+            selectionAnchor = slot;
+        } else if (!additive) {
+            selectedSlots.clear();
+            selectionAnchor = null;
+        }
+
+        selectionStartCell = cell;
+        selectionAdditive = additive;
+        selectionDragging = true;
+        callback.setReturnValue(true);
+    }
+
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void dragSelection(double mouseX, double mouseY, int button, double dragX, double dragY, CallbackInfoReturnable<Boolean> callback) {
+        if (!selectionDragging || button != 0 || selectionStartCell == null) return;
+        ContainerGrid.Cell currentCell = findGridCell(mouseX, mouseY);
+        if (currentCell != null && currentCell.slot().container.equals(selectionStartCell.slot().container)) {
+            selectGridRegion(selectionStartCell, currentCell, selectionAdditive);
+        }
+        callback.setReturnValue(true);
+    }
+
+    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    private void endSelection(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
+        if (!selectionDragging || button != 0) return;
+        selectionDragging = false;
+        selectionStartCell = null;
+        callback.setReturnValue(true);
+    }
+
     @Unique
     private int resizeDirection(int x, int y, int width, int height) {
         boolean west = x <= 3, east = x >= width - 3, north = y <= 3, south = y >= height - 3;
@@ -283,6 +414,53 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     }
 
     @Unique
+    private ContainerGrid.Cell findGridCell(double mouseX, double mouseY) {
+        ContainerGrid grid = ClientInventoryContext.getContainerGrid();
+        for (ContainerGrid.Cell cell : grid.getCells()) {
+            int x = leftPos + cell.slot().x;
+            int y = topPos + cell.slot().y;
+            if (mouseX >= x && mouseX < x + 18 && mouseY >= y && mouseY < y + 18) return cell;
+        }
+        return null;
+    }
+
+    @Unique
+    private void selectGridRegion(ContainerGrid.Cell start, ContainerGrid.Cell end, boolean additive) {
+        if (!additive) selectedSlots.clear();
+        int minX = Math.min(start.x(), end.x());
+        int maxX = Math.max(start.x(), end.x());
+        int minY = Math.min(start.y(), end.y());
+        int maxY = Math.max(start.y(), end.y());
+        ContainerGrid grid = ClientInventoryContext.getContainerGrid();
+        Map<ContainerGrid.Cell, ContainerGrid.Cell> owners = grid.getCellMap();
+        for (ContainerGrid.Cell cell : grid.getCells()) {
+            if (cell.x() < minX || cell.x() > maxX || cell.y() < minY || cell.y() > maxY) continue;
+            if (!cell.slot().container.equals(start.slot().container)) continue;
+            ContainerGrid.Cell owner = owners.get(cell);
+            if (owner != null && owner.slot().hasItem()) selectedSlots.add(owner.slot());
+        }
+        selectionAnchor = start.slot();
+    }
+
+    @Unique
+    private void drawRedFrame(GuiGraphics graphics, ContainerGrid.Cell start, ContainerGrid.Cell end) {
+        if (start == null || end == null) return;
+        int minX = Math.min(start.slot().x, end.slot().x);
+        int maxX = Math.max(start.slot().x, end.slot().x);
+        int minY = Math.min(start.slot().y, end.slot().y);
+        int maxY = Math.max(start.slot().y, end.slot().y);
+        int x = leftPos + minX - 1;
+        int y = topPos + minY - 1;
+        int width = maxX - minX + 18;
+        int height = maxY - minY + 18;
+        int red = 0xFFFF3030;
+        graphics.fill(x, y, x + width, y + 1, red);
+        graphics.fill(x, y + height - 1, x + width, y + height, red);
+        graphics.fill(x, y, x + 1, y + height, red);
+        graphics.fill(x + width - 1, y, x + width, y + height, red);
+    }
+
+    @Unique
     private boolean selectPaletteTheme(double mouseX, double mouseY) {
         int paletteWidth = 12;
         int entryHeight = 10;
@@ -295,9 +473,11 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         BorderTheme[] themes = BorderTheme.values();
         if (index < 0 || index >= themes.length) return false;
 
-        String itemId = ForgeRegistries.ITEMS.getKey(colorMenuSlot.getItem().getItem()).toString();
-        BorderThemeCache.setTheme(itemId, themes[index]);
-        colorMenuSlot = null;
+        for (Slot slot : colorMenuTargets) {
+            String itemId = ForgeRegistries.ITEMS.getKey(slot.getItem().getItem()).toString();
+            BorderThemeCache.setTheme(itemId, themes[index]);
+        }
+        colorMenuTargets.clear();
         return true;
     }
 
