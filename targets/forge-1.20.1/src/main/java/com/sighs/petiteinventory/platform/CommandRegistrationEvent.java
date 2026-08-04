@@ -11,5 +11,6 @@ public final class CommandRegistrationEvent {
     @SubscribeEvent
     public static void onCommandRegistration(RegisterCommandsEvent event) {
         EditModeCommand.register(event.getDispatcher());
+        ScreenLayoutModeCommand.register(event.getDispatcher());
     }
 }

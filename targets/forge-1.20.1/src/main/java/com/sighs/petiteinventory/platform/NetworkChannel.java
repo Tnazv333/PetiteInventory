@@ -34,5 +34,15 @@ public class NetworkChannel {
                 EditModePayload::encode,
                 EditModePayload::decode,
                 EditModePayload::handle);
+
+        CHANNEL.registerMessage(id++, ScreenLayoutModePayload.class,
+                ScreenLayoutModePayload::encode,
+                ScreenLayoutModePayload::decode,
+                ScreenLayoutModePayload::handle);
+
+        CHANNEL.registerMessage(id++, SophisticatedQuickMovePayload.class,
+                SophisticatedQuickMovePayload::encode,
+                SophisticatedQuickMovePayload::decode,
+                SophisticatedQuickMovePayload::handle);
     }
 }

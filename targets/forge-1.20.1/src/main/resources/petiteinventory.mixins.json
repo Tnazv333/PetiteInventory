@@ -9,11 +9,13 @@
     "ContainerCloseDefenseMixin",
     "CompoundTagMixin",
     "InventoryMixin",
-    "ServerPlayerMixin"
+    "ServerPlayerMixin",
+    "StorageContainerMenuBaseMixin"
   ],
   "client": [
     "AbstractContainerScreenMixin",
-    "InventoryScreenMixin"
+    "InventoryScreenMixin",
+    "StorageScreenBaseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

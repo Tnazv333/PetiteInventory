@@ -45,6 +45,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Shadow @Nullable
     public Slot hoveredSlot;
 
+    @Shadow protected AbstractContainerMenu menu;
+
     @Shadow private ItemStack draggingItem;
 
     @Shadow public abstract boolean mouseClicked(double p_97748_, double p_97749_, int p_97750_);
@@ -333,7 +335,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void beginSelection(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> callback) {
-        if (!ClientEditMode.isEnabled() || button != 0 || !colorMenuTargets.isEmpty()) return;
+        if (!ClientEditMode.isEnabled() || button != 0 || !Screen.hasControlDown()
+                || !colorMenuTargets.isEmpty()) return;
         ContainerGrid.Cell cell = findGridCell(mouseX, mouseY);
         if (cell == null) return;
 
@@ -758,7 +761,6 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     }
 
     private ItemStack getCursorItem() {
-        AbstractContainerMenu menu = Minecraft.getInstance().player.containerMenu;
         return this.draggingItem.isEmpty() ? menu.getCarried() : this.draggingItem;
     }
 

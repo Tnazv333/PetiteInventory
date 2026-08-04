@@ -1,6 +1,7 @@
 package com.sighs.petiteinventory.inventory;
 
 import com.sighs.petiteinventory.config.ModConfig;
+import com.sighs.petiteinventory.compat.SophisticatedBackpacksCompat;
 import com.sighs.petiteinventory.inventory.Area;
 import com.sighs.petiteinventory.inventory.ContainerGrid;
 import net.minecraft.world.Container;
@@ -16,8 +17,14 @@ import java.util.List;
 
 public class InventorySlotService {
     public static ContainerGrid getContainerGrid(AbstractContainerMenu menu) {
-        String menuType = menu.getClass().toString();
-        boolean matchedMenu = ModConfig.WHITELIST.get().contains(menuType);
+        return getContainerGrid(menu, true);
+    }
+
+    /**
+     * The per-screen switch applies to the foreign container only. Player
+     * inventory participation remains exclusively controlled by the config.
+     */
+    public static ContainerGrid getContainerGrid(AbstractContainerMenu menu, boolean enableContainer) {
         boolean enableInventory = ModConfig.ENABLE_INVENTORY.get();
         ContainerGrid grid;
 
@@ -28,21 +35,40 @@ public class InventorySlotService {
             }
             grid = ContainerGrid.parse(girdSlot);
         }
+        else if (SophisticatedBackpacksCompat.isBackpackMenu(menu)) {
+            List<Slot> playerMainSlots = enableInventory
+                    ? SophisticatedBackpacksCompat.getPlayerMainInventorySlots(menu)
+                    : List.of();
+            List<Slot> storageSlots = enableContainer
+                    ? SophisticatedBackpacksCompat.getStorageSlots(menu)
+                    : List.of();
+            grid = ContainerGrid.parse(storageSlots, playerMainSlots);
+        }
         else {
             List<Slot> containerSlot = new ArrayList<>();
             List<Slot> inventorySlot = new ArrayList<>();
             for (Slot slot : menu.slots) {
-                if (matchedMenu && !(slot.container instanceof Inventory)) containerSlot.add(slot);
-                if (enableInventory && slot.container instanceof Inventory) inventorySlot.add(slot);
+                if (enableContainer && !(slot.container instanceof Inventory)) containerSlot.add(slot);
+                if (enableInventory && isPlayerMainInventorySlot(slot)) inventorySlot.add(slot);
             }
             grid = ContainerGrid.parse(containerSlot, inventorySlot);
         }
 
-        if (enableInventory && !(menu instanceof InventoryMenu)) {
-            grid.removeRow(grid.getHeight() - 1);
-        }
-
         return grid;
+    }
+
+    public static boolean isPlayerHotbarSlot(Slot slot) {
+        return slot != null
+                && slot.container instanceof Inventory
+                && slot.getContainerSlot() >= 0
+                && slot.getContainerSlot() < 9;
+    }
+
+    public static boolean isPlayerMainInventorySlot(Slot slot) {
+        return slot != null
+                && slot.container instanceof Inventory
+                && slot.getContainerSlot() >= 9
+                && slot.getContainerSlot() < 36;
     }
 
     /**

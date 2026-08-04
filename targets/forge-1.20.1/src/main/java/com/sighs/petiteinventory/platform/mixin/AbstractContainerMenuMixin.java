@@ -1,5 +1,6 @@
 package com.sighs.petiteinventory.platform.mixin;
 
+import com.sighs.petiteinventory.compat.SophisticatedBackpacksCompat;
 import com.sighs.petiteinventory.platform.IAbstractContainerMenu;
 import com.sighs.petiteinventory.platform.IAbstractContainerMenu;
 import com.sighs.petiteinventory.inventory.Area;
@@ -50,6 +51,7 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
         if (player.isCreative()) return;
         if (slot < 0 || slot >= slots.size()) return;
         if (type != ClickType.QUICK_MOVE) return;
+        if (SophisticatedBackpacksCompat.isBackpackMenu((AbstractContainerMenu) (Object) this)) return;
 
         Slot clickedSlot = slots.get(slot);
         ItemStack clickedItem = clickedSlot.getItem();
@@ -89,7 +91,9 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                 // 容器 → 背包（可能包含快捷栏）
                 slots.forEach(s -> { if (s.container instanceof Inventory) targetSlots.add(s); });
                 // 检测目标槽位是否包含快捷栏
-                toHotbar = targetSlots.stream().anyMatch(s -> s.index >= 0 && s.index <= 8);
+                slots.forEach(s -> {
+                    if (InventorySlotService.isPlayerMainInventorySlot(s)) targetSlots.add(s);
+                });
                 targetGrid = ContainerGrid.parse(targetSlots);
             }
         }

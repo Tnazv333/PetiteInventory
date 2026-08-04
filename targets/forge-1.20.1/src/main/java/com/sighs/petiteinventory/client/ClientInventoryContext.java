@@ -5,6 +5,7 @@ import com.sighs.petiteinventory.inventory.ContainerGrid;
 import com.sighs.petiteinventory.inventory.InventorySlotService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
@@ -31,8 +32,19 @@ public class ClientInventoryContext {
     }
 
     private static ContainerGrid getClientContainerGrid() {
-        AbstractContainerMenu menu = Minecraft.getInstance().player.containerMenu;
-        return InventorySlotService.getContainerGrid(menu);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) return new ContainerGrid();
+        AbstractContainerMenu menu = minecraft.player.containerMenu;
+        boolean enableContainer = true;
+        if (minecraft.screen instanceof AbstractContainerScreen<?> containerScreen) {
+            menu = containerScreen.getMenu();
+            enableContainer = ScreenLayoutSettings.isEnabled(containerScreen);
+        }
+        return InventorySlotService.getContainerGrid(menu, enableContainer);
+    }
+
+    public static void invalidate() {
+        clientGrid = null;
     }
 
     public static Slot getMappedSlot(Slot originCell) {
@@ -45,6 +57,7 @@ public class ClientInventoryContext {
     public static boolean isClientGridSlot(Slot slot) {
         if (Minecraft.getInstance().screen instanceof CreativeModeInventoryScreen) return false;
         if (slot == null) return false;
+        if (InventorySlotService.isPlayerHotbarSlot(slot)) return false;
         return getContainerGrid().getCell(slot) != null;
     }
 

@@ -158,6 +158,14 @@ public class ContainerGrid {
     }
 
     public Cell findArea(Area area) {
+        return findArea(area, true);
+    }
+
+    /**
+     * Finds an empty footprint. Some handler-backed inventories expose each
+     * slot through a separate Container wrapper even though they form one grid.
+     */
+    public Cell findArea(Area area, boolean requireSameContainer) {
         // 按slot.index对cells进行排序，从左上角开始搜索
         List<Cell> sortedCells = new ArrayList<>(cells);
         sortedCells.sort(Comparator.comparingInt(cell -> cell.slot.index));
@@ -171,11 +179,126 @@ public class ContainerGrid {
             if (size > cells.size()) continue;
             boolean valid = true;
             for (Cell c : cells) {
-                if (!c.isEmpty() || cellMap.containsKey(c) || !c.slot.container.equals(cell.slot.container)) valid = false;
+                if (!c.isEmpty() || cellMap.containsKey(c)
+                        || (requireSameContainer && !c.slot.container.equals(cell.slot.container))) valid = false;
             }
             if (valid) return cell;
         }
         return null;
+    }
+
+    /** Finds a footprint using rectangle overlap instead of Cell hash lookups. */
+    public Cell findAreaByFootprint(Area area, boolean requireSameContainer) {
+        List<Cell> sortedCells = new ArrayList<>(cells);
+        sortedCells.sort(Comparator.comparingInt(cell -> cell.slot.index));
+        for (Cell candidate : sortedCells) {
+            Set<Cell> candidateCells = getCells(candidate, area);
+            if (candidateCells.size() != area.width() * area.height()) continue;
+            boolean valid = true;
+            for (Cell cell : candidateCells) {
+                if (!cell.isEmpty() || (requireSameContainer && !cell.slot.container.equals(candidate.slot.container))) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) continue;
+
+            for (Cell occupied : cells) {
+                if (occupied.isEmpty()) continue;
+                Area occupiedArea = ItemInventoryService.getArea(occupied.slot.getItem());
+                boolean overlaps = candidate.x < occupied.x + occupiedArea.width()
+                        && candidate.x + area.width() > occupied.x
+                        && candidate.y < occupied.y + occupiedArea.height()
+                        && candidate.y + area.height() > occupied.y;
+                if (overlaps) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid) return candidate;
+        }
+        return null;
+    }
+
+    /**
+     * Finds a footprint in a handler-backed grid using menu slot order. Core's
+     * client screen can reposition slots independently of their logical order.
+     */
+    public Cell findAreaBySlotOrder(Area area) {
+        return findAreaBySlotOrder(area, getWidth());
+    }
+
+    /**
+     * Finds a footprint using the menu's logical slot order. Sophisticated
+     * Core assigns all storage slots the same placeholder x/y on the server,
+     * so callers may provide the actual number of columns explicitly.
+     */
+    public Cell findAreaBySlotOrder(Area area, int width) {
+        List<Cell> ordered = new ArrayList<>(cells);
+        ordered.sort(Comparator.comparingInt(cell -> cell.slot.index));
+        if (width <= 0) return null;
+
+        for (int anchorIndex = 0; anchorIndex < ordered.size(); anchorIndex++) {
+            int anchorRow = anchorIndex / width;
+            int anchorColumn = anchorIndex % width;
+            if (anchorColumn + area.width() > width) continue;
+            boolean valid = true;
+            for (int y = 0; y < area.height() && valid; y++) {
+                for (int x = 0; x < area.width(); x++) {
+                    int cellIndex = (anchorRow + y) * width + anchorColumn + x;
+                    if (cellIndex >= ordered.size() || !ordered.get(cellIndex).isEmpty()) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            if (!valid) continue;
+
+            for (int occupiedIndex = 0; occupiedIndex < ordered.size(); occupiedIndex++) {
+                Cell occupied = ordered.get(occupiedIndex);
+                if (occupied.isEmpty()) continue;
+                int occupiedRow = occupiedIndex / width;
+                int occupiedColumn = occupiedIndex % width;
+                Area occupiedArea = ItemInventoryService.getArea(occupied.slot.getItem());
+                if (anchorColumn < occupiedColumn + occupiedArea.width()
+                        && anchorColumn + area.width() > occupiedColumn
+                        && anchorRow < occupiedRow + occupiedArea.height()
+                        && anchorRow + area.height() > occupiedRow) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid) return ordered.get(anchorIndex);
+        }
+        return null;
+    }
+
+    /** Returns the cells covered by an order-based footprint. */
+    public List<Cell> getCellsBySlotOrder(Cell anchor, Area area, int width) {
+        List<Cell> ordered = new ArrayList<>(cells);
+        ordered.sort(Comparator.comparingInt(cell -> cell.slot.index));
+        int anchorIndex = -1;
+        for (int index = 0; index < ordered.size(); index++) {
+            if (ordered.get(index).slot() == anchor.slot()) {
+                anchorIndex = index;
+                break;
+            }
+        }
+        if (anchorIndex < 0 || width <= 0) return List.of();
+
+        int row = anchorIndex / width;
+        int column = anchorIndex % width;
+        if (column + area.width() > width) return List.of();
+
+        List<Cell> result = new ArrayList<>(area.width() * area.height());
+        for (int y = 0; y < area.height(); y++) {
+            for (int x = 0; x < area.width(); x++) {
+                int index = (row + y) * width + column + x;
+                if (index < 0 || index >= ordered.size()) return List.of();
+                result.add(ordered.get(index));
+            }
+        }
+        return result;
     }
 
     public void removeRow(int row) {
