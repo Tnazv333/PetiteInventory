@@ -4,6 +4,7 @@ import com.sighs.petiteinventory.Petiteinventory;
 import com.sighs.petiteinventory.platform.NetworkChannel;
 import com.sighs.petiteinventory.platform.RotateAreaPayload;
 import com.sighs.petiteinventory.client.ModKeybindings;
+import com.sighs.petiteinventory.inventory.Area;
 import com.sighs.petiteinventory.inventory.ItemInventoryService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
@@ -14,7 +15,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.lwjgl.glfw.GLFW;
 
 @Mod.EventBusSubscriber(modid = Petiteinventory.MODID, value = Dist.CLIENT)
 public class KeyInput {
@@ -44,14 +44,31 @@ public class KeyInput {
             if (now - lastR < 150) return;
             lastR = now;
 
-            ItemStack carried = screen.getMenu().getCarried();
-            if (carried.isEmpty()) return;
-
-            boolean nowRot = !ItemInventoryService.ItemRotateHelper.isRotated(carried);
-            ItemInventoryService.ItemRotateHelper.setRotated(carried, nowRot);
-
-            // -1 鐞涖劎銇氭Η鐘崇垼娑撳﹦娈戦悧鈺佹惂
-            NetworkChannel.CHANNEL.sendToServer(new RotateAreaPayload(-1, nowRot));
+            rotateCarriedItem(screen);
         }
+    }
+
+    @SubscribeEvent
+    public static void scroll(ScreenEvent.MouseScrolled.Pre event) {
+        if (!(event.getScreen() instanceof AbstractContainerScreen<?> screen)) return;
+        if (event.getScrollDelta() == 0) return;
+
+        if (rotateCarriedItem(screen)) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** Toggle the carried item's footprint orientation and synchronize it with the server. */
+    private static boolean rotateCarriedItem(AbstractContainerScreen<?> screen) {
+        ItemStack carried = screen.getMenu().getCarried();
+        if (carried.isEmpty()) return false;
+
+        Area area = ItemInventoryService.getArea(carried);
+        if (area.width() == area.height()) return false;
+
+        boolean rotated = !ItemInventoryService.ItemRotateHelper.isRotated(carried);
+        ItemInventoryService.ItemRotateHelper.setRotated(carried, rotated);
+        NetworkChannel.CHANNEL.sendToServer(new RotateAreaPayload(-1, rotated));
+        return true;
     }
 }

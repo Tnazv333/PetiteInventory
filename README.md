@@ -1,52 +1,60 @@
-# PetiteInventory
+# 真实物品栏 / 娇小物品栏
 
-PetiteInventory is a modular grid-inventory system for Minecraft Forge. It gives items configurable rectangular footprints and keeps rendering, placement, replacement, stacking, rotation, and quick-transfer behavior consistent across container screens.
+PetiteInventory 提供了类似《生化危机 4》《暗黑破坏神》《三角洲行动》等游戏作品的容器布局：一个物品可以占用多个槽位，并拥有对应的替换、堆叠和转移规则。此外，模组还提供物品形状翻转、物品背景色和可视化编辑器。
 
-See [EN.md](EN.md) for the current feature overview and usage notes.
+Modrinth 项目编号：`Prhnq8xz`<br>
+CurseForge 项目编号：`1386712`<br>
+当前版本：`1.1.0`
 
-# All Rights Reserved License 保留所有权利许可证
+## 主要功能
 
-Copyright (c) 2025 Tower of Sighs. 版权所有 (c) 2025 叹息之塔.
+推荐直接使用编辑模式，也可以使用配置文件进行原始配置。
 
-This project is licensed under **All Rights Reserved (ARR).** 本项目根据**保留所有权利（ARR）** 进行许可。
+首次启动后会生成默认规则：
 
-## 1. License Scope 许可范围
-- All **source code, assets, and other project files** are licensed under **All Rights Reserved (ARR).** 所有**源代码、资源文件及其他项目文件**均根据**保留所有权利（ARR）** 许可。
-- **Translations** are freely available with **no license restrictions** and may be used, shared, modified, or distributed without limitation. **翻译内容**可自由获取，**无许可限制**，可以不受限制地使用、共享、修改或分发。
+- 物品形状：`config/PetiteInventory/border_items.json`
+- 物品颜色：`config/PetiteInventory/border_colors.json`
 
-## 2. No Redistribution 禁止再分发
-You may **not** copy, distribute, rehost, sublicense, or share this software in any form, including modified or unmodified versions. 您**不得**以任何形式复制、分发、重新托管、分许可或共享此软件，包括修改版或未修改版。
+规则格式简单直观，支持物品 ID、标签和特定 NBT 匹配，也可以使用 `/reload` 指令重新加载。
 
-## 3. No Unauthorized Modification for Public Use 禁止未经授权的修改用于公开用途
-You **may modify** the software **only for personal, non-commercial use.** 您**可以修改**该软件，**仅限于个人、非商业用途**。
-You **may not** share, distribute, or publish modifications. 您**不得**共享、分发或发布修改内容。
+启用布局后，物品会按照配置的矩形区域占用槽位。出于游戏平衡考虑，玩家物品栏是否启用由配置控制；要为其他容器启用布局，可以将鼠标放在目标容器的任意槽位上，按复制热键（默认为 `U`）复制该 Screen 标识，再把标识加入配置。
 
-## 4. No Commercial Use 禁止商业用途
-You may **not** use this software, in whole or in part, for any commercial purpose without explicit written permission from the author. 未经作者明确书面许可，您**不得**将此软件的全部或部分用于任何商业目的。
+启用布局的容器还具有以下操作优化：
 
-## 5. No Unauthorized Forks or Derivative Works 禁止未经授权的分叉或衍生作品
-- You **may not** create forks, derivative projects, or adaptations of this software without explicit permission from the author. 未经作者明确许可，您**不得**创建此软件的分叉、衍生项目或改编版本。
-- **Exception:** You **may fork this repository on GitHub** **solely for the purpose of submitting pull requests (PRs) to this project.** **例外：** 您**可以在 GitHub 上分叉此代码库**，**仅用于向本项目提交拉取请求（PR）**。
-- Any other use of forks outside of PR contributions requires explicit permission. 除 PR 贡献之外的任何其他分叉用途均需要明确许可。
+- 鼠标移动一种物品替换另一种物品时，只要目标区域内没有冲突物品，就可以直接替换。
+- 使用 Shift 快速转移物品时，如果无法堆叠，模组会智能寻找能够容纳该物品的空白区域。
+- 快捷栏默认不受 Petite 布局影响，以保留原版操作方式。
+- 拿起长宽不等的物品后，使用滚轮或按 `R` 可以翻转当前物品实例的形状，不会修改配置规则。
 
-## 6. Limited Code Reuse for Inspiration 有限的代码复用（用于参考）
-- You **may reference** or **be inspired by** this code for your own work. 您**可以参考**或**受此代码启发**用于您自己的作品。
-- You **may reuse small snippets** (less than **20 lines**) in your own projects **as long as proper attribution is given**. 您可以在自己的项目中**复用少量代码片段**（少于**20行**），**但须注明出处**。
-- You **may not copy large portions, entire files, or substantial code structures** without explicit permission from the author. 未经作者明确许可，您**不得复制大部分代码、整个文件或实质性的代码结构**。
-- If you are unsure whether your use qualifies as "small reuse," please contact the author. 如果您不确定您的使用是否属于"少量复用"，请联系作者。
+## 编辑模式
 
-## 7. Disclaimer of Liability 免责声明
-This software is provided **"as is"**, without any express or implied warranties. 本软件按**"现状"** 提供，不附带任何明示或暗示的担保。
-The author **is not responsible for any damages**, including but not limited to: 作者**不对任何损害负责**，包括但不限于：
-- Software crashes, bugs, or data corruption. 软件崩溃、程序错误或数据损坏。
-- Security vulnerabilities or unauthorized modifications. 安全漏洞或未经授权的修改。
-- Performance issues, overheating, or hardware damage. 性能问题、过热或硬件损坏。
-- Legal issues arising from misuse of the software. 因滥用软件而产生的法律问题。
+使用 `/petiteinventory edit` 开关编辑模式。编辑模式下，鼠标移动到物品可调整的边缘或角落时会显示高亮边框，物品可以像 Windows 窗口一样自由调整大小，修改立即生效。
 
-Use at your own risk. 风险自负。
+右键物品可以打开预制颜色调色盘，调整该物品的背景色，修改立即生效。当前调色盘只提供预制颜色，也可以直接编辑 `border_colors.json`，为物品 ID、标签或 TACZ 的 `GunId` 设置颜色。
 
----
+按住 `Ctrl` 可以多选物品并框选区域，`Ctrl+Shift` 可以扩展选择。多选物品时，右键可以批量设置颜色；右键按住 0.5 秒会进入批量设置占位区域模式，划定一个尺寸即可为所有选中物品应用该尺寸。
 
-## **Contact** **联系方式**
-For licensing inquiries, please contact me via GitHub: 有关许可事宜，请通过 GitHub 联系我：
-🔗 **https://github.com/mafuyu404** 🔗 **https://github.com/mafuyu404**
+编辑模式下，每个容器 Screen 顶部都会显示布局开关，可以直接控制当前界面是否启用 Petite 布局，操作后立即生效。玩家物品栏和快捷栏仍由独立配置控制。
+
+此外还有两条指令：
+
+- `/petiteinventory blacklist`：强制黑名单模式，默认对所有容器启用布局，再按需关闭。
+- `/petiteinventory whitelist`：强制白名单模式，默认对所有容器关闭布局，再按需开启。
+
+## 注意事项
+
+- 目前已适配精妙背包，并支持 TACZ 枪械的尺寸和背景色 NBT 匹配。
+- Item Borders 可以与 Petite 的物品背景同时使用，JEI 的配方和搜索逻辑不会被修改。
+- 本模组的性质决定了它可能与容器整理、槽位扩展等改动物品栏结构的模组产生兼容性问题。
+- 容器整理与本模组的设计目标存在冲突，手动整理本身就是 PetiteInventory 的设计之一，因此无法保证与自动整理模组完美兼容。
+- 在启用了 Petite 布局的容器中，按住鼠标拖拽物品的行为会被禁用；如果之后解决相关交互问题，再考虑恢复。
+- 如果其他模组的重要容器出现功能失效，请反馈对应的 Screen 标识和复现步骤。
+
+## 未来计划
+
+- 移植到更多 Minecraft 版本和加载器。
+- 支持更多物品栏扩容机制。
+- 为更多第三方容器界面提供专用适配器。
+- 探索类似俄罗斯方块的不规则物品形状。
+
+完整中文说明见 [ZH.md](ZH.md)，英文说明见 [EN.md](EN.md)。本项目采用 GNU AGPL v3.0，许可协议见 [LICENSE](LICENSE)。
