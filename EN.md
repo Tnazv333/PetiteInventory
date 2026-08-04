@@ -1,41 +1,30 @@
 # Petite Inventory
 
-Provides a **Resident Evil 4 / Diablo–style inventory layout**, where a single item can occupy multiple slots, and adjusts the corresponding replacement and transfer operations.
+PetiteInventory is a modular grid-inventory system for Minecraft Forge. Items can occupy configurable rectangular footprints, while placement, replacement, stacking, rotation, and transfer operations use the same footprint rules.
 
 ## Features
 
-On first launch, a default rule file is generated at:
-`config/PetiteInventory/default.json`
+- Configure item sizes and tags in `config/PetiteInventory/default.json`.
+- Rotate items without changing their identity or stack data.
+- Use edit mode to resize item footprints from edges and corners, select multiple items with `Ctrl`, and apply preset border colors.
+- Enable or disable the Petite layout per screen. The player inventory and hotbar remain independently configurable.
+- Integrate with ordinary containers and Sophisticated Core/Backpacks screens.
+- Preserve replacement behavior for differently sized items and find valid areas during quick transfers.
+- Keep the hotbar outside the Petite layout by default.
 
-The rule format is extremely simple and intuitive—one glance and you’ll understand it. Tag matching is supported, and you can reload rules using the `/reload` command.
+Rules can be reloaded with `/reload`. To configure another container, point at one of its slots and use the copy-container key (default: `U`), then add the screen identifier to the configuration.
 
-After entering the game, you’ll immediately notice that the inventory layout has changed:
+## Edit Mode
 
-![img](https://resource-api.xyeidc.com/client/pics/30b839f7)
-
-For gameplay balance, the new layout **only applies to the player inventory by default**. If you prefer not to apply it to the player inventory, you can disable it in the config file.
-
-If you want to enable the new layout for other containers, simply point at any slot of the target container and press the **copy key** (default: **U**) to copy its container ID.
-
-Paste this container ID into the config file to enable the custom layout for that container.
-
-Additionally, containers using the new layout benefit from several operation optimizations:
-
-* When moving an item with the mouse to replace another, replacement is allowed as long as the target area contains only one other item type.
-* When using **Shift + Right Click** for quick transfer, if the items cannot stack, the system intelligently finds an available blank area to place them.
-* The hotbar is **never affected** by the new layout—otherwise, the experience would be unbearable.
+In edit mode, a normal left click still picks up or places an item. Hold `Ctrl` to enter multi-selection; `Ctrl`-drag selects a region and `Ctrl+Shift` extends a selection. Right-click opens the preset color palette, while holding right-click for 0.5 seconds starts batch footprint editing.
 
 ## Notes
 
-* Due to the nature of this mod, some compatibility issues with other mods (e.g., container sorting, slot expansion) are inevitable.
-* There can never be a perfectly ideal compatibility solution with auto-sorting mods—not only because of technical conflicts, but also because manual organization is one of this mod’s core design philosophies.
-* In containers that use the new layout, **click-dragging items with the mouse is disabled**. This may return in the future if the technical challenges are solved.
-* If you encounter functional issues with important containers from other mods, please leave feedback.
-* Works better with **Item Borders**.
+Compatibility with sorting, slot-expansion, and other inventory-altering mods can vary. Manual organization is intentional, and the hotbar is excluded to keep its conventional layout. The layout works well with Item Borders.
 
 ## Roadmap
 
-* Port to additional Minecraft versions.
-* Compatibility with major container mods such as Sophisticated Backpacks.
-* Inventory expansion mechanisms.
-* Exploration of **non-rectangular, Tetris-style item shapes**.
+- Port to additional Minecraft versions and loaders.
+- Add more compatibility adapters for third-party container screens.
+- Support inventory expansion mechanisms.
+- Explore non-rectangular, Tetris-style item shapes.

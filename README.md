@@ -1,3 +1,9 @@
+# PetiteInventory
+
+PetiteInventory is a modular grid-inventory system for Minecraft Forge. It gives items configurable rectangular footprints and keeps rendering, placement, replacement, stacking, rotation, and quick-transfer behavior consistent across container screens.
+
+See [EN.md](EN.md) for the current feature overview and usage notes.
+
 # All Rights Reserved License 保留所有权利许可证
 
 Copyright (c) 2025 Tower of Sighs. 版权所有 (c) 2025 叹息之塔.
